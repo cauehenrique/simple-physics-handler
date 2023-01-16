@@ -1,8 +1,6 @@
 --[[
 MIT License
-
 Copyright 2019 lcrabbit
-
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights
@@ -25,8 +23,9 @@ local Actor = {}
 local mtActor = { __index = Actor }
 local Solid = {}
 local mtSolid = { __index = Solid }
-actors = {}
-solids = {}
+
+local actors = {}
+local solids = {}
 
 -- Utils math functions
 
@@ -40,7 +39,7 @@ function math.sign(n)
 end
 
 local function hasValue (tab, val)
-    for index, value in ipairs(tab) do
+    for _, value in ipairs(tab) do
         if value == val then
             return true
         end
@@ -51,22 +50,21 @@ end
 -- SPH functions
 
 function SPH.newActor(x, y, w, h, tags)
-  actorObj = Actor.new(x, y, w, h, tags)
-    -- Register our new actor
-  actors[table.getn(actors) + 1] = actorObj
-  return actorObj
+  local actor = Actor.new(x, y, w, h, tags)
+  table.insert(actors, actor)
+
+  return actor
 end
 
-function SPH.setLinearVelocity(vector, onCollide)
-  return actor:setLinearVelocity(vector, onCollide, solids)
-end
+-- function SPH.setLinearVelocity(vector, onCollide)
+  -- return actor:setLinearVelocity(vector, onCollide, solids)
+-- end
 
 function SPH.newSolid(x, y, w, h, tags)
-  solidObj = Solid.new(x, y, w, h, tags)
-  -- Register new solid
-  solids[table.getn(solids) + 1] = solidObj
+  local solid = Solid.new(x, y, w, h, tags)
+  table.insert(solids, solid)
 
-  return solidObj
+  return solid
 end
 
 function SPH.draw(alpha)
@@ -79,6 +77,7 @@ end
 function Actor.new(x, y, width, height, tags)
   local actor = {}
 
+
   actor.x = x
   actor.y = y
   actor.w = width
@@ -88,8 +87,8 @@ function Actor.new(x, y, width, height, tags)
   actor.tags = {'actor'}
 
   if (tags ~= nil) then
-    for k, tag in ipairs(tags) do
-      actor.tags[table.getn(actor.tags) + 1] = tag
+    for _, tag in ipairs(tags) do
+      table.insert(actor.tags, tag)
     end
   end
 
@@ -98,24 +97,19 @@ function Actor.new(x, y, width, height, tags)
   return actor
 end
 
-function Actor:collideAt(solids, vector)
-  hasCollision = false
+function Actor:collideAt(collisionList, vector)
+  local hasCollision = false
 
   if (solids == nil) then
     return false
   end
 
-  for key, solid in ipairs(solids) do
-    x = solid.x
-    y = solid.y
-    w = solid.w
-    h = solid.h
-
+  for _, solid in ipairs(collisionList) do
     if (solid ~= self) then
-      hasCollision = (self.x + vector.x < x + w and
-              self.x + self.w + vector.x > x and
-              self.y + vector.y < y + h and
-              self.y + self.h + vector.y > y)
+      hasCollision = (self.x + vector.x < solid.x + solid.w and
+              self.x + self.w + vector.x > solid.x and
+              self.y + vector.y < solid.y + solid.h and
+              self.y + self.h + vector.y > solid.y)
     end
 
     if (not solid.collidable) then
@@ -126,52 +120,49 @@ function Actor:collideAt(solids, vector)
       return true, solid
     end
   end
+
   return false
 end
 
-function Actor:triggerAt(actors, vector)
-  hasCollision = false
+function Actor:triggerAt(collisionList, vector)
+  local hasCollision = false
 
   if (actors == nil) then
     return false
   end
 
-  for key, actor in ipairs(actors) do
-    x = actor.x
-    y = actor.y
-    w = actor.w
-    h = actor.h
-
+  for _, actor in ipairs(collisionList) do
     if (actor ~= self) then
-      hasCollision = (self.x + vector.x < x + w and
-              self.x + self.w + vector.x > x and
-              self.y + vector.y < y + h and
-              self.y + self.h + vector.y > y)
+      hasCollision = (self.x + vector.x < actor.x + actor.w and
+              self.x + self.w + vector.x > actor.x and
+              self.y + vector.y < actor.y + actor.h and
+              self.y + self.h + vector.y > actor.y)
     end
 
     if (hasCollision) then
       return true, actor
     end
   end
+
   return false
 end
 
 function Actor:moveX (amount, onCollide)
   self.xRemainder = self.xRemainder + amount
-  move = math.round(self.xRemainder)
+  local move = math.round(self.xRemainder)
 
   if (move ~= 0) then
     self.xRemainder  = self.xRemainder - move
-    sign = math.sign(move)
+    local sign = math.sign(move)
 
     while (move ~= 0) do
-      collisionVector = { x = sign, y = 0 }
-      triggerAt, trigger = self:triggerAt(actors, collisionVector)
+      local collisionVector = { x = sign, y = 0 }
+      local triggerAt, trigger = self:triggerAt(actors, collisionVector)
       if (triggerAt and onCollide ~= self.squish) then
         onCollide(trigger)
       end
 
-      collideAt, collider = self:collideAt(solids, collisionVector)
+      local collideAt, collider = self:collideAt(solids, collisionVector)
       if (not collideAt) then
         self.x = self.x + sign
         move = move - sign
@@ -187,20 +178,20 @@ end
 
 function Actor:moveY (amount, onCollide)
   self.yRemainder = self.yRemainder + amount
-  move = math.round(self.yRemainder)
+  local move = math.round(self.yRemainder)
 
   if (move ~= 0) then
     self.yRemainder = self.yRemainder - move
-    sign = math.sign(move)
+    local sign = math.sign(move)
 
     while (move ~= 0) do
-      collisionVector = { x = 0, y = sign }
-      triggerAt, trigger = self:triggerAt(actors, collisionVector)
+      local collisionVector = { x = 0, y = sign }
+      local triggerAt, trigger = self:triggerAt(actors, collisionVector)
       if (triggerAt and onCollide ~= self.squish) then
         onCollide(trigger)
       end
 
-      collideAt, collider = self:collideAt(solids, collisionVector)
+      local collideAt, collider = self:collideAt(solids, collisionVector)
       if (not collideAt) then
         self.y = self.y + sign
         move = move - sign
@@ -216,11 +207,13 @@ end
 
 function Actor:setLinearVelocity (vector, onCollide)
   if (vector.x ~= nil) then
-    self:moveX(vector.x, onCollide, sollids)
+    -- self:moveX(vector.x, onCollide, sollids)
+    self:moveX(vector.x, onCollide)
   end
 
   if (vector.y ~= nil) then
-    self:moveY(vector.y, onCollide, sollids)
+    -- self:moveY(vector.y, onCollide, sollids)
+    self:moveY(vector.y, onCollide)
   end
 end
 
@@ -243,7 +236,7 @@ function Actor:destroy()
 end
 
 function Actor:draw(alpha)
-  for k, actor in ipairs(actors) do
+  for _, actor in ipairs(actors) do
     love.graphics.setColor(0.2, 1, 0.2, alpha ~= nil and alpha or 1)
     love.graphics.rectangle('line', actor.x, actor.y, actor.w, actor.h)
   end
@@ -267,8 +260,8 @@ function Solid.new(x, y, width, height, tags)
   solid.collidable = true
 
   if (tags ~= nil) then
-    for k, tag in ipairs(tags) do
-      solid.tags[table.getn(tags) + 1] = tag
+    for _, tag in ipairs(tags) do
+      table.insert(solid.tags, tag)
     end
   end
 
@@ -287,13 +280,14 @@ end
 function Solid:setLinearVelocity(x, y)
   self.xRemainder = self.xRemainder + x
   self.yRemainder = self.yRemainder + y
-  moveX = math.round(self.xRemainder)
-  moveY = math.round(self.yRemainder)
+
+  local moveX = math.round(self.xRemainder)
+  local moveY = math.round(self.yRemainder)
 
   if (moveX ~= 0 or moveY ~= 0) then
-    riding = {}
+    local riding = {}
 
-    for key, actor in ipairs(actors) do
+    for _, actor in ipairs(actors) do
       if (actor:isRiding(self)) then
         table.insert(riding, actor)
       end
@@ -306,7 +300,7 @@ function Solid:setLinearVelocity(x, y)
       self.x = self.x + moveX
 
       if (moveX > 0) then
-        for key, actor in ipairs(actors) do
+        for _, actor in ipairs(actors) do
           if (self:isOverlapping(actor)) then
             actor:moveX(moveX, actor.squish, actor)
           elseif (hasValue(riding, actor)) then
@@ -314,7 +308,7 @@ function Solid:setLinearVelocity(x, y)
           end
         end
       else
-        for key, actor in ipairs(actors) do
+        for _, actor in ipairs(actors) do
           if (self:isOverlapping(actor)) then
             actor:moveX(moveX)
           elseif (hasValue(riding, actor)) then
@@ -326,9 +320,9 @@ function Solid:setLinearVelocity(x, y)
   end
 
   if (moveY ~= 0 or moveY ~= 0) then
-    riding = {}
+    local riding = {}
 
-    for key, actor in ipairs(actors) do
+    for _, actor in ipairs(actors) do
       if (actor:isRiding(self)) then
         table.insert(riding, actor)
       end
@@ -341,7 +335,7 @@ function Solid:setLinearVelocity(x, y)
       self.y = self.y + moveY
 
       if (moveY > 0) then
-        for key, actor in ipairs(actors) do
+        for _, actor in ipairs(actors) do
           if (self:isOverlapping(actor)) then
             actor:moveY(moveY, actor.squish)
           elseif (hasValue(riding, actor)) then
@@ -349,7 +343,7 @@ function Solid:setLinearVelocity(x, y)
           end
         end
       else
-        for key, actor in ipairs(actors) do
+        for _, actor in ipairs(actors) do
           if (self:isOverlapping(actor)) then
             actor:moveY(moveY)
           elseif (hasValue(riding, actor)) then
@@ -364,7 +358,7 @@ function Solid:setLinearVelocity(x, y)
 end
 
 function Solid:draw(alpha)
-  for k, currentSolid in ipairs(solids) do
+  for _, currentSolid in ipairs(solids) do
     love.graphics.setColor(1, 0.2, 0.2, alpha ~= nil and alpha or 1)
     love.graphics.rectangle('line', currentSolid.x, currentSolid.y, currentSolid.w, currentSolid.h)
   end
